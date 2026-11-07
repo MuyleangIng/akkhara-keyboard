@@ -91,6 +91,7 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
     private val top5List = LinearLayout(context)
     private val emojiPanel = LinearLayout(context)
     private val clipPanel = LinearLayout(context)
+    private val dictPanel = LinearLayout(context)         // meanings (Wiktionary) of a Khmer suggestion
 
     private var shownItems: List<String> = emptyList()
     private var shownLatin = ""
@@ -135,7 +136,7 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
         top5.addView(top5List.apply { orientation = VERTICAL; setPadding(dpi(10f), dpi(4f), dpi(10f), dpi(10f)) })
         top5.setBackgroundColor(theme.bg)
         top5.setOnTouchListener(SwipeDownToClose())
-        for (p in listOf<View>(top5, emojiPanel, clipPanel)) {
+        for (p in listOf<View>(top5, emojiPanel, clipPanel, dictPanel)) {
             p.visibility = GONE
             body.addView(p, FrameLayout.LayoutParams(-1, -1))
         }
@@ -343,6 +344,8 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
             setPadding(dpi(14f), 0, dpi(14f), 0)
             if (fill != null) background = GradientDrawable().apply { setColor(fill); cornerRadius = dp(20f) }
             setOnClickListener { haptics.key(this); onClick() }
+            // hold a Khmer suggestion: show what its words mean (dictionary panel)
+            if (text.any { it in '\u1780'..'\u17FF' }) setOnLongClickListener { haptics.long(this); openDictionary(text); true }
         }
         candidateRow.addView(tv, LayoutParams(-2, dpi(40f)).apply { setMargins(dpi(3f), 0, dpi(3f), 0) })
     }
@@ -364,6 +367,7 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
                 background = GradientDrawable().apply { setColor(if (best) theme.accentSoft else theme.key); cornerRadius = dp(12f) }
                 minimumHeight = dpi(48f)
                 setOnClickListener { haptics.key(this); closePanel(top5); onClick() }
+                if (text.any { it in '\u1780'..'\u17FF' }) setOnLongClickListener { haptics.long(this); openDictionary(text); true }
             }
             r.addView(TextView(context).apply {
                 this.text = text
@@ -382,7 +386,7 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
 
     // ---- panels share the keys' height (the app above never jumps) ---------------------------------
     private fun openPanel(p: View) {
-        for (o in listOf<View>(top5, emojiPanel, clipPanel)) if (o !== p) o.visibility = GONE
+        for (o in listOf<View>(top5, emojiPanel, clipPanel, dictPanel)) if (o !== p) o.visibility = GONE
         // exactly the keys' height: the keyboard never grows (no full-screen panels, no jumping app)
         p.layoutParams = p.layoutParams.apply { height = keysRow.height.takeIf { it > 0 } ?: dpi(260f) }
         p.visibility = VISIBLE
@@ -543,6 +547,46 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
             text = e; setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f); gravity = Gravity.CENTER
             setOnClickListener { haptics.key(this); listener.onInsert(e); rememberEmoji(e) }
         }, LayoutParams(dpi(44f), -1))
+    }
+
+    // ---- dictionary panel (Wiktionary, CC BY-SA) ----------------------------------------------------
+    /** Meanings of every dictionary word in [text]; loads the 0.6 MB dictionary once, off the UI thread. */
+    private fun openDictionary(text: String) {
+        dictPanel.removeAllViews()
+        dictPanel.orientation = VERTICAL
+        dictPanel.setBackgroundColor(theme.bg)
+        val header = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dpi(6f), dpi(4f), dpi(6f), dpi(4f)) }
+        header.addView(iconButton(R.drawable.ic_keyboard, "Back to keys") { closePanel(dictPanel) }, LayoutParams(-2, dpi(38f)))
+        header.addView(TextView(context).apply {
+            this.text = text; setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f); setTextColor(theme.ink)
+            maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(dpi(12f), 0, dpi(8f), 0)
+        }, LayoutParams(0, -2, 1f))
+        dictPanel.addView(header, LayoutParams(-1, -2))
+        val box = LinearLayout(context).apply { orientation = VERTICAL; setPadding(dpi(12f), 0, dpi(12f), dpi(8f)) }
+        dictPanel.addView(ScrollView(context).apply { addView(box) }, LayoutParams(-1, 0, 1f))
+        dictPanel.addView(TextView(context).apply {
+            this.text = "Dictionary: Wiktionary (CC BY-SA 4.0)"; setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            setTextColor(theme.ink2); gravity = Gravity.CENTER; setPadding(0, 0, 0, dpi(4f))
+        })
+        box.addView(TextView(context).apply { this.text = "…"; setTextColor(theme.ink2) })
+        openPanel(dictPanel)
+        Thread {
+            val entries = try { Dictionary.get(context).lookup(text) } catch (e: Exception) { emptyList() }
+            ui.post {
+                box.removeAllViews()
+                if (entries.isEmpty()) box.addView(TextView(context).apply {
+                    this.text = "No dictionary words found."; setTextColor(theme.ink2); setPadding(0, dpi(16f), 0, 0)
+                })
+                for (e in entries) {
+                    val r = LinearLayout(context).apply { orientation = VERTICAL; setPadding(0, dpi(8f), 0, dpi(8f)) }
+                    r.addView(TextView(context).apply { this.text = e.word; setTextSize(TypedValue.COMPLEX_UNIT_SP, 19f); setTextColor(theme.accent) })
+                    r.addView(TextView(context).apply { this.text = e.meaning.replace(" | ", "\n"); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTextColor(theme.ink); setLineSpacing(0f, 1.2f) })
+                    box.addView(r)
+                    box.addView(View(context).apply { setBackgroundColor(theme.fn) }, LayoutParams(-1, 1))
+                }
+                if (entries.isNotEmpty()) announceForAccessibility(entries.joinToString(". ") { "${it.word}: ${it.meaning}" })
+            }
+        }.start()
     }
 
     // ---- clipboard panel ---------------------------------------------------------------------------
@@ -726,7 +770,7 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
     /** Back to letters when a new text box opens (panels closed, no search). */
     fun resetPanels() {
         if (searching) { searching = false; searchQuery.setLength(0) }
-        for (p in listOf<View>(top5, emojiPanel, clipPanel)) p.visibility = GONE
+        for (p in listOf<View>(top5, emojiPanel, clipPanel, dictPanel)) p.visibility = GONE
         if (keys.symbols != 0) keys.symbols = 0
     }
 

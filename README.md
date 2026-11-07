@@ -46,6 +46,8 @@ Khmer, and keeps English chat words (`bro`, `game`) as they are.
   and items marked sensitive are never saved; codes and account numbers stay hidden until tapped.
 - **Typing feel**: key preview, hold ⌫ to delete whole words, hold space and slide to move the
   cursor, two-thumb typing, system haptics, optional key sound, TalkBack support.
+- **Dictionary**: hold a Khmer suggestion to see what each word means (Khmer → English, ~9k words,
+  offline, from Wiktionary); the app has a Dictionary search too.
 - The mode is remembered per app; password fields get no suggestions.
 - Light / dark mode, keyboard height Small / Normal / Large, ➤ send key in chat apps.
 
@@ -149,7 +151,9 @@ Bug reports, layout ideas and real Sing Khmer spellings are very welcome — see
 
 ## License
 
-Code: [Apache License 2.0](LICENSE) © 2026 Ing Muyleang. The model is licensed separately
+Code: [Apache License 2.0](LICENSE) © 2026 Ing Muyleang. The built-in dictionary
+(`android/app/src/main/assets/dict/`) comes from [Wiktionary](https://en.wiktionary.org) and is
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) (see its NOTICE.txt). The model is licensed separately
 (Apache-2.0, gated access) on [Hugging Face](https://huggingface.co/INGMUYLEANG/akkhara-mini).
 
 ## Contact

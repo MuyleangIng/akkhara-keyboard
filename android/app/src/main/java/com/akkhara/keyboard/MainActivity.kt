@@ -118,6 +118,7 @@ class MainActivity : Activity() {
         steps = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(steps)
         buildTryIt()
+        buildDictionary()
         buildSpeed()
         buildVibration()
         buildTyping()
@@ -462,6 +463,60 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER; setPadding(0, dp(4f), 0, 0) })
         col.addView(label("huggingface.co/INGMUYLEANG · github.com/MuyleangIng", 12f, ink2).apply {
             gravity = Gravity.CENTER; setPadding(0, dp(2f), 0, 0) })
+        col.addView(label("Dictionary: Wiktionary (CC BY-SA 4.0)", 11f, ink2).apply {
+            gravity = Gravity.CENTER; setPadding(0, dp(2f), 0, 0) })
+    }
+
+    /**
+     * Dictionary card: type Khmer, or Sing Khmer (converted with the model first), and see the
+     * English meaning of each word. Data: Wiktionary (CC BY-SA 4.0), ~9k words, offline.
+     */
+    private fun buildDictionary() {
+        val c = card(col)
+        c.addView(label("Dictionary", 16f, ink, bold = true))
+        c.addView(label("Khmer → English meanings, offline. Type Khmer or Sing Khmer.", 12f, ink2).apply {
+            setPadding(0, dp(2f), 0, dp(8f)) })
+        val input = EditText(this).apply {
+            hint = "sl oun · ស្រឡាញ់"
+            setHintTextColor(0x80A9B1C6.toInt())
+            setTextColor(ink)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            background = rounded(field, dp(14f), glassBorder)
+            setPadding(dp(14f), dp(10f), dp(14f), dp(10f))
+            minHeight = dp(46f)
+        }
+        c.addView(input, LinearLayout.LayoutParams(-1, -2))
+        val results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        c.addView(results)
+        var req = 0
+        val run = Runnable {
+            val text = input.text.toString().trim()
+            val id = ++req
+            results.removeAllViews()
+            if (text.isEmpty()) return@Runnable
+            worker.execute {
+                // Latin → Khmer with the model first (same as the keyboard), then look up the words
+                val khmer = if (text.any { it in '\u1780'..'\u17FF' }) text else engineOrLoad().quick(text)
+                val entries = Dictionary.get(this).lookup(khmer)
+                ui.post {
+                    if (id != req) return@post
+                    results.removeAllViews()
+                    if (khmer != text) results.addView(label(khmer, 17f, ink, khmer = true).apply { setPadding(0, dp(10f), 0, 0) })
+                    if (entries.isEmpty()) results.addView(label("No dictionary words found.", 13f, ink2).apply { setPadding(0, dp(8f), 0, 0) })
+                    for (e in entries.take(12)) {
+                        val r = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8f), 0, dp(4f)) }
+                        r.addView(label(e.word, 16f, 0xFF8FB0FF.toInt(), khmer = true))
+                        r.addView(label(e.meaning.replace(" | ", "\n"), 13f, ink2))
+                        results.addView(r)
+                    }
+                }
+            }
+        }
+        input.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: Editable?) { ui.removeCallbacks(run); ui.postDelayed(run, 250) }
+        })
     }
 
     // ---- model work (always on the worker thread) ---------------------------------------------
