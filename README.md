@@ -100,6 +100,8 @@ The keyboard uses **[akkhara-mini](https://huggingface.co/INGMUYLEANG/akkhara-mi
 character-level Transformer (18M parameters) exported to ONNX and quantized to 8-bit (18.5 MB).
 It is built into the APK, so you do not need to download anything.
 
+![How akkhara-mini works: training, the character-level T5 model, ONNX export and the phone keyboard](docs/assets/mini_architecture.png)
+
 | | Real chat (39 sentences): top-1 / top-5 | Speed on phone |
 |---|---|---|
 | **akkhara-mini** (latest, in the app since 0.5.0) | **87% / 95%** | ~10 ms (#1) · ~20 ms (top-5) |
@@ -107,7 +109,7 @@ It is built into the APK, so you do not need to download anything.
 `scripts/get_model.sh` downloads the same model, so a build from source uses it too.
 
 The [web demo](https://huggingface.co/spaces/INGMUYLEANG/akkhara-demo) uses the same model by default; a larger
-model ([akkhara-byt5-small](https://huggingface.co/INGMUYLEANG/akkhara-byt5-small), best on formal text) is in its menu. Model weights are
+model ([akkhara-byt5-small](https://huggingface.co/INGMUYLEANG/akkhara-byt5-small), 300M, real chat top-1 87%, best on formal text) is in its menu. Model weights are
 gated on Hugging Face: request access on the model page.
 
 ## Build from source
