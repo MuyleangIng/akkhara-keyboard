@@ -1,11 +1,15 @@
 package com.akkhara.keyboard
 
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
+import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.util.Log
@@ -24,6 +28,8 @@ import java.util.concurrent.Executors
  *     in "anh tunh"), then type / backspace. Letters map 1:1 to the buffer, so the rest stays.
  *   - Spaces stay inside the buffer, so the model sees whole sentences (better guesses).
  * English mode "EN": keys type Latin directly, like a normal keyboard.
+ * Password fields: letters go in as typed, no suggestions, nothing is learned or logged.
+ * If the model cannot load: "Basic mode" (Latin goes in as typed), typing never blocks.
  */
 class AkkharaIME : InputMethodService(), KeyboardView.Listener {
 
@@ -36,13 +42,20 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
     private val worker = Executors.newSingleThreadExecutor()  // model runs here, never on the UI thread
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var engine: LiveEngine? = null
+    @Volatile private var loading = false
+    @Volatile private var failed = false   // model could not load → Basic mode
+    private var password = false           // password field: no suggestions, no learning
+    private var appPackage = ""            // the app being typed in (mode is remembered per app)
+    private val clipStore by lazy { ClipStore(this) }
+    private val clipboard by lazy { getSystemService(ClipboardManager::class.java) }
+    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { onClip() }
     private var keyboard: KeyboardView? = null
 
     private val buffer = StringBuilder()
     private var cursor = 0          // cursor position INSIDE the buffer (0..buffer.length)
     private var composeStart = -1   // where the underlined Latin starts in the text box
     private var mode = Mode.SING    // Sing Khmer / ខ្មែរ (NiDA) / English — globe key cycles
-    private val sing get() = mode == Mode.SING
+    private val sing get() = mode == Mode.SING && !password && !failed
     private var candidates: List<String> = emptyList()
     private var candidatesFor = ""          // the buffer text the candidates belong to
     private var requestId = 0                // newer keystrokes make older results useless
@@ -50,12 +63,46 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
     override fun onCreate() {
         super.onCreate()
         mode = Mode.entries[getSharedPreferences(Haptics.PREFS, MODE_PRIVATE).getInt("mode", 0).coerceIn(0, 2)]
+        loadModel()
+        clipboard?.addPrimaryClipChangedListener(clipListener)
+    }
+
+    /**
+     * Clipboard history (on this phone only). Skipped: clips copied while a password field is
+     * focused, and clips the app marked sensitive (Android 13+: ClipDescription.EXTRA_IS_SENSITIVE).
+     */
+    private fun onClip() {
+        if (password) return
+        val clip = try { clipboard?.primaryClip } catch (e: SecurityException) { null } ?: return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            clip.description?.extras?.getBoolean(ClipDescription.EXTRA_IS_SENSITIVE) == true) return
+        if (clip.itemCount == 0) return
+        val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        if (text.isBlank()) return
+        clipStore.add(text)
+        keyboard?.offerPaste(text)
+    }
+
+    /** Load the model in the background (also after the system killed the process). Typing never waits. */
+    private fun loadModel() {
+        if (engine != null || loading) return
+        loading = true
+        failed = false
         worker.execute {
             val t = System.currentTimeMillis()
-            val e = LiveEngine(MiniModel(this))
-            e.quick("nh jg tv sala rean")  // warm-up: the first run is slower
-            engine = e
-            main.post { if (buffer.isEmpty() && sing) keyboard?.setStatus("Sing Khmer · ready (${System.currentTimeMillis() - t} ms to load)") }
+            try {
+                val e = LiveEngine(MiniModel(this))
+                e.quick("nh jg tv sala rean")  // warm-up: the first run is slower
+                engine = e
+                // ready: the toolbar shows its icons only
+                main.post { if (buffer.isEmpty() && sing && !password) keyboard?.setStatus("") }
+            } catch (e: Throwable) {
+                failed = true
+                Log.w(TAG, "model failed to load: ${e.javaClass.simpleName}")  // local log only
+                main.post { if (sing) keyboard?.setBadge("Basic mode · Latin goes in as typed") }
+            } finally {
+                loading = false
+            }
         }
     }
 
@@ -79,12 +126,26 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
             EditorInfo.IME_ACTION_DONE -> "✓"
             else -> "⏎"
         }
+        // the mode is remembered per app (Telegram stays Sing, the browser stays English …)
+        appPackage = info?.packageName ?: ""
+        val prefs = getSharedPreferences(Haptics.PREFS, MODE_PRIVATE)
+        mode = Mode.entries[prefs.getInt("mode_$appPackage", prefs.getInt("mode", 0)).coerceIn(0, 2)]
+        keyboard?.resetPanels()
         keyboard?.setEnterLabel(label)
         keyboard?.setMode(mode)
+        keyboard?.reloadSettings()
+        if (engine == null) loadModel()   // warm up again if the process was restarted
+        keyboard?.setStatus(statusText())
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        val t = attribute?.inputType ?: 0
+        val variation = t and InputType.TYPE_MASK_VARIATION
+        password = (t and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
+            (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+             variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD)) ||
+            (t and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_NUMBER && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD)
         reset()
     }
 
@@ -120,10 +181,16 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
         keyboard?.setStatus(statusText())
     }
 
-    private fun statusText() = when (mode) {
-        Mode.SING -> if (engine == null) "loading model…" else "Sing Khmer · type Latin, tap the Khmer word up here"
-        Mode.KHMER -> "ខ្មែរ keyboard (NiDA) · ⇧ for more letters"
-        Mode.ENGLISH -> "English · letters go in as typed"
+    private fun statusText() = when {
+        password -> "Password · typed as is, no suggestions"
+        mode == Mode.SING && failed -> "Basic mode · Latin goes in as typed"
+        else -> statusFor(mode)
+    }
+
+    /** Short note in the idle toolbar; empty = nothing to say (the toolbar shows its icons only). */
+    private fun statusFor(m: Mode) = when (m) {
+        Mode.SING -> if (engine == null) "loading model… you can type already" else ""
+        Mode.KHMER, Mode.ENGLISH -> ""
     }
 
     // ---- model in the background ------------------------------------------------------------
@@ -138,7 +205,8 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
         val id = ++requestId
         main.removeCallbacks(top5Delay)
         if (text.isBlank()) { keyboard?.setStatus(statusText()); return }
-        val e = engine ?: run { keyboard?.setStatus("loading model…"); return }
+        // model still loading: keep the Latin (the bar offers "keep as typed"), never block typing
+        val e = engine ?: run { keyboard?.setCandidates(emptyList(), text); return }
         worker.execute {
             if (id != requestId) return@execute          // already outdated: skip
             val t = System.nanoTime()
@@ -165,15 +233,15 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
             val top = e.candidates(text) { id != requestId }
             if (id != requestId || top.isEmpty()) return@execute
             Log.d(TAG, "top5 ${(System.nanoTime() - t) / 1_000_000} ms, ${text.length} chars")
-            main.post { if (id == requestId) show(top, text) }
+            main.post { if (id == requestId) show(top, text, announce = true) }
         }
     }
 
-    private fun show(items: List<String>, forText: String) {
+    private fun show(items: List<String>, forText: String, announce: Boolean = false) {
         if (forText != buffer.toString()) return  // typed on meanwhile: a newer result comes
         candidates = items
         candidatesFor = forText
-        keyboard?.setCandidates(items, forText)
+        keyboard?.setCandidates(items, forText, announce)
     }
 
     /** Put Khmer into the text box (replacing the underlined Latin) and clear the buffer. */
@@ -243,6 +311,39 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
         }
     }
 
+    /** ⌫ held for ~1 s: delete the previous word (inside the Latin buffer, or in the text box). */
+    override fun onBackspaceWord() {
+        val ic = currentInputConnection ?: return
+        if (sing && buffer.isNotEmpty()) {
+            if (cursor == 0) return
+            var i = cursor
+            while (i > 0 && buffer[i - 1] == ' ') i--
+            while (i > 0 && buffer[i - 1] != ' ') i--
+            buffer.delete(i, cursor)
+            cursor = i
+            if (buffer.isEmpty()) { ic.commitText("", 1); reset() } else updateComposing()
+            return
+        }
+        val before = ic.getTextBeforeCursor(64, 0)?.toString() ?: ""
+        if (before.isEmpty()) { onBackspace(); return }
+        var i = before.length
+        while (i > 0 && before[i - 1].isWhitespace()) i--
+        // Khmer has no spaces between words: stop at punctuation / Latin boundary, at most 12 chars
+        val stop = maxOf(0, i - 12)
+        while (i > stop && !before[i - 1].isWhitespace() && before[i - 1] !in "។,.?!") i--
+        ic.deleteSurroundingText(before.length - i, 0)
+    }
+
+    /** Space-bar trackpad: move the cursor left / right by [steps] characters. */
+    override fun onCursorMove(steps: Int) {
+        val ic = currentInputConnection ?: return
+        val code = if (steps < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
+        repeat(kotlin.math.abs(steps)) {
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+        }
+    }
+
     override fun onEnter() {
         if (sing && buffer.isNotEmpty()) { commitBest(); return }
         val ic = currentInputConnection ?: return
@@ -260,7 +361,8 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
     override fun onGlobe() {
         if (sing) commitBest()
         mode = mode.next()
-        getSharedPreferences(Haptics.PREFS, MODE_PRIVATE).edit().putInt("mode", mode.ordinal).apply()
+        getSharedPreferences(Haptics.PREFS, MODE_PRIVATE).edit()
+            .putInt("mode", mode.ordinal).putInt("mode_$appPackage", mode.ordinal).apply()
         keyboard?.setMode(mode)
         reset()
     }
@@ -276,6 +378,18 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
     private fun showPicker() =
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
 
+    /** Emoji / clipboard text: the Latin being typed stays as typed, then the text goes in. */
+    override fun onInsert(text: String) {
+        val ic = currentInputConnection ?: return
+        if (buffer.isNotEmpty()) { ic.finishComposingText(); reset() }
+        ic.commitText(text, 1)
+    }
+
+    override fun onOpenSettings() {
+        if (sing && buffer.isNotEmpty()) currentInputConnection?.finishComposingText()
+        startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     override fun onCandidate(index: Int) {
         candidates.getOrNull(index)?.let { commit(it) }
     }
@@ -285,6 +399,7 @@ class AkkharaIME : InputMethodService(), KeyboardView.Listener {
     }
 
     override fun onDestroy() {
+        clipboard?.removePrimaryClipChangedListener(clipListener)
         worker.shutdownNow()
         super.onDestroy()
     }

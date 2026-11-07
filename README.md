@@ -38,7 +38,16 @@ Khmer, and keeps English chat words (`bro`, `game`) as they are.
 - **You stay in control**: your Latin stays underlined until you tap the Khmer you want.
 - **Fix any word**: tap inside the underlined text to edit a single word.
 - **Keep as typed**: one tap keeps names or English words exactly as you wrote them.
-- Light / dark mode, adjustable key vibration (Off / Light / Strong), ➤ send key in chat apps.
+- **Familiar layout**: number row, `!#1` symbols (2 pages, with ៛), corner hints (hold a key for its
+  symbol), `.` / `,` extras (។ ៕ ៖ ៗ), and the bottom row `!#1 · 🌐 · , · space · . · ⏎`.
+- **Toolbar**: emoji (search with Sing Khmer words: `sok`, `srolanh`), clipboard, mode switch,
+  one-hand mode, settings. It turns into the suggestion bar while you type; ⌄ shows all 5.
+- **Private clipboard**: kept only on your phone, unpinned items deleted after 1 hour; passwords
+  and items marked sensitive are never saved; codes and account numbers stay hidden until tapped.
+- **Typing feel**: key preview, hold ⌫ to delete whole words, hold space and slide to move the
+  cursor, two-thumb typing, system haptics, optional key sound, TalkBack support.
+- The mode is remembered per app; password fields get no suggestions.
+- Light / dark mode, keyboard height Small / Normal / Large, ➤ send key in chat apps.
 
 ## How it works
 
@@ -80,6 +89,10 @@ text; Akkhara has no internet access, so it cannot send anything.
 | tap inside the underlined text | edit any word |
 | 🌐 tap / hold | next keyboard (Sing → ខ្មែរ → English) / other phone keyboard |
 | ⇧ once / twice | one capital (second layer on ខ្មែរ) / CAPS |
+| hold a letter | its corner symbol (or more); slide and lift to pick |
+| hold ⌫ / hold space + slide | delete whole words / move the cursor |
+| `!#1` | symbols (1/2 → 2/2); `abc` / `កខគ` goes back |
+| ⌄ on the suggestion bar | the full top-5 list |
 
 ## The model
 
