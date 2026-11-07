@@ -110,7 +110,7 @@ All Akkhara models on the same tests (green = the phone model, blue = the big mo
 
 | | Real chat (39 sentences): top-1 / top-5 | Speed on phone |
 |---|---|---|
-| **akkhara-mini** (latest, in the app since 0.5.0) | **87% / 95%** | ~10 ms (#1) · ~20 ms (top-5) |
+| **akkhara-mini** (latest, in the app since 0.9.0) | **90% / 92%** | ~10 ms (#1) · ~20 ms (top-5) |
 
 `scripts/get_model.sh` downloads the same model, so a build from source uses it too.
 

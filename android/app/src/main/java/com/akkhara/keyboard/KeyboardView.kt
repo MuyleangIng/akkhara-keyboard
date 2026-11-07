@@ -580,11 +580,14 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
                 for (e in entries) {
                     val r = LinearLayout(context).apply { orientation = VERTICAL; setPadding(0, dpi(8f), 0, dpi(8f)) }
                     r.addView(TextView(context).apply { this.text = e.word; setTextSize(TypedValue.COMPLEX_UNIT_SP, 19f); setTextColor(theme.accent) })
-                    r.addView(TextView(context).apply { this.text = e.meaning.replace(" | ", "\n"); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTextColor(theme.ink); setLineSpacing(0f, 1.2f) })
+                    e.meaning?.let { m -> r.addView(TextView(context).apply { this.text = m.replace(" | ", "\n"); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTextColor(theme.ink); setLineSpacing(0f, 1.2f) }) }
+                    if (e.spellings.isNotEmpty()) r.addView(TextView(context).apply {
+                        this.text = "Sing: " + e.spellings.take(6).joinToString(" · "); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); setTextColor(theme.ink2)
+                    })
                     box.addView(r)
                     box.addView(View(context).apply { setBackgroundColor(theme.fn) }, LayoutParams(-1, 1))
                 }
-                if (entries.isNotEmpty()) announceForAccessibility(entries.joinToString(". ") { "${it.word}: ${it.meaning}" })
+                if (entries.isNotEmpty()) announceForAccessibility(entries.joinToString(". ") { "${it.word}: ${it.meaning ?: ""}" })
             }
         }.start()
     }

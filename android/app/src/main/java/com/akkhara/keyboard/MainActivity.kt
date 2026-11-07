@@ -474,10 +474,10 @@ class MainActivity : Activity() {
     private fun buildDictionary() {
         val c = card(col)
         c.addView(label("Dictionary", 16f, ink, bold = true))
-        c.addView(label("Khmer → English meanings, offline. Type Khmer or Sing Khmer.", 12f, ink2).apply {
+        c.addView(label("Any spelling finds the word (sur sdei = surdei = សួស្តី): meaning + all Sing spellings, offline.", 12f, ink2).apply {
             setPadding(0, dp(2f), 0, dp(8f)) })
         val input = EditText(this).apply {
-            hint = "sl oun · ស្រឡាញ់"
+            hint = "surdei · sl oun · ស្រឡាញ់"
             setHintTextColor(0x80A9B1C6.toInt())
             setTextColor(ink)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
@@ -495,18 +495,24 @@ class MainActivity : Activity() {
             results.removeAllViews()
             if (text.isEmpty()) return@Runnable
             worker.execute {
-                // Latin → Khmer with the model first (same as the keyboard), then look up the words
-                val khmer = if (text.any { it in '\u1780'..'\u17FF' }) text else engineOrLoad().quick(text)
-                val entries = Dictionary.get(this).lookup(khmer)
+                // Latin: 1) the spelling index (any spelling, also 1 letter off: surdei → សួស្តី)
+                //        2) the model's conversion of the whole text, cut into words
+                val dict = Dictionary.get(this)
+                val isKhmer = text.any { it in '\u1780'..'\u17FF' }
+                val khmer = if (isKhmer) text else engineOrLoad().quick(text)
+                val entries = LinkedHashMap<String, Dictionary.Entry>()
+                if (!isKhmer) dict.byLatin(text).forEach { entries[it.word] = it }
+                dict.lookup(khmer).forEach { entries.putIfAbsent(it.word, it) }
                 ui.post {
                     if (id != req) return@post
                     results.removeAllViews()
                     if (khmer != text) results.addView(label(khmer, 17f, ink, khmer = true).apply { setPadding(0, dp(10f), 0, 0) })
                     if (entries.isEmpty()) results.addView(label("No dictionary words found.", 13f, ink2).apply { setPadding(0, dp(8f), 0, 0) })
-                    for (e in entries.take(12)) {
+                    for (e in entries.values.take(12)) {
                         val r = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8f), 0, dp(4f)) }
                         r.addView(label(e.word, 16f, 0xFF8FB0FF.toInt(), khmer = true))
-                        r.addView(label(e.meaning.replace(" | ", "\n"), 13f, ink2))
+                        e.meaning?.let { r.addView(label(it.replace(" | ", "\n"), 13f, ink2)) }
+                        if (e.spellings.isNotEmpty()) r.addView(label("Sing: " + e.spellings.take(8).joinToString(" · "), 12f, ink2))
                         results.addView(r)
                     }
                 }
