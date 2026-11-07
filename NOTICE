@@ -1,0 +1,8 @@
+Akkhara
+Copyright 2026 Ing Muyleang
+
+This product includes software developed by Ing Muyleang (https://github.com/MuyleangIng).
+Model training data includes text from Khmer Wikipedia (CC BY-SA), MADLAD-400 (ODC-BY) and CC-100;
+see README.md "Data sources & licenses".
+Some romanized spellings in data/manual_variants.tsv come from Chhunneng/khmer-text-transliteration
+(MIT License, https://github.com/Chhunneng/khmer-text-transliteration).

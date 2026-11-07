@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Declares the keyboard to Android: one subtype, Khmer typed with Latin letters. -->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.akkhara.keyboard.MainActivity"
+    android:supportsSwitchingToNextInputMethod="true">
+    <subtype
+        android:label="@string/subtype_label"
+        android:imeSubtypeLocale="km"
+        android:imeSubtypeMode="keyboard"
+        android:languageTag="km" />
+</input-method>
