@@ -26,8 +26,8 @@ android {
         applicationId = "com.akkhara.keyboard"
         minSdk = 26          // Android 8.0+
         targetSdk = 35       // Android 15 (Galaxy S25 runs Android 15/16)
-        versionCode = 13
-        versionName = "0.9.0"
+        versionCode = 14
+        versionName = "0.10.0"
         // phone CPUs only: arm64 (all new phones, e.g. Galaxy S25) + 32-bit arm (older phones)
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
