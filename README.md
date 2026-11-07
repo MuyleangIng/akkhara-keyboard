@@ -102,6 +102,10 @@ It is built into the APK, so you do not need to download anything.
 
 ![How akkhara-mini works: training, the character-level T5 model, ONNX export and the phone keyboard](docs/assets/mini_architecture.png)
 
+All Akkhara models on the same tests (green = the phone model, blue = the big model):
+
+![Benchmark: all models on the same tests](docs/assets/benchmark.png)
+
 | | Real chat (39 sentences): top-1 / top-5 | Speed on phone |
 |---|---|---|
 | **akkhara-mini** (latest, in the app since 0.5.0) | **87% / 95%** | ~10 ms (#1) · ~20 ms (top-5) |
