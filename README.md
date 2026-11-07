@@ -164,9 +164,10 @@ Questions about training details or hardware: contact the author through the [Hu
 
 ```bibtex
 @misc{akkhara2026keyboard,
-  title  = {Akkhara Keyboard: on-device Sing Khmer to Khmer script input},
-  author = {Ing Muyleang},
-  year   = {2026},
-  url    = {https://github.com/MuyleangIng/akkhara-keyboard}
+  author    = {Ing, Muyleang},
+  title     = {Akkhara Keyboard: on-device Sing Khmer to Khmer script input},
+  year      = {2026},
+  publisher = {GitHub},
+  url       = {https://github.com/MuyleangIng/akkhara-keyboard}
 }
 ```
