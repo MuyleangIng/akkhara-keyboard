@@ -24,6 +24,7 @@ class MiniModel(context: Context) {
     private val decoder: OrtSession
     private val vocab: Map<String, Long>
     private val idToChar: Map<Long, String>
+    val abbreviations: Map<String, String>
 
     private val pad = 0L  // T5: the decoder starts from <pad>
     private val eos = 1L  // </s>
@@ -39,6 +40,14 @@ class MiniModel(context: Context) {
         fun asset(name: String) = context.assets.open("akkhara-mini/$name").use { it.readBytes() }
         encoder = env.createSession(asset("encoder.int8.onnx"), opts)
         decoder = env.createSession(asset("decoder.int8.onnx"), opts)
+
+        // abbreviation → full Khmer name (#2 suggestion: mptc → ក្រសួងប្រៃសណីយ៍…), optional file
+        abbreviations = try {
+            String(asset("abbreviations.tsv"), Charsets.UTF_8).lineSequence()
+                .filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith("abbreviation\t") }
+                .mapNotNull { l -> l.split('\t').takeIf { it.size >= 2 }?.let { it[0].trim().lowercase() to it[1].trim() } }
+                .toMap()
+        } catch (e: Exception) { emptyMap() }
 
         val json = JSONObject(String(asset("tokenizer.json"), Charsets.UTF_8))
         val v = json.getJSONObject("model").getJSONObject("vocab")

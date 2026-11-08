@@ -40,11 +40,33 @@ class LiveEngine(private val model: MiniModel, private val chunkWords: Int = 6) 
         val cs = chunks(text)
         if (cs.isEmpty()) return emptyList()
         val prefix = prefixOf(cs)
-        return top(cs.last(), cancelled).map { join(prefix, it.first) }
+        return expand(top(cs.last(), cancelled).map { join(prefix, it.first) }, model.abbreviations)
     }
 
     companion object {
         private fun isLatin(c: Char) = c.code < 128 && c.isLetter()
+        private const val TRAIL = ".,!?។៕"
+
+        /** The sentence with each known abbreviation replaced by its full Khmer name, or null. */
+        fun expandText(text: String, table: Map<String, String>): String? {
+            var out = ""
+            var hit = false
+            for (tok in text.split(' ')) {
+                val core = tok.trimEnd { it in TRAIL }
+                val full = if (core.isNotEmpty()) table[core.lowercase()] else null
+                if (full != null) { hit = true; out = join(out, full) + tok.substring(core.length) }
+                else if (tok.isNotEmpty()) out = join(out, tok)
+            }
+            return if (hit) out else null
+        }
+
+        /** Abbreviation kept as typed at #1 (mptc) → the same sentence with the full Khmer name at #2. */
+        fun expand(cands: List<String>, table: Map<String, String>): List<String> {
+            if (cands.isEmpty() || table.isEmpty()) return cands
+            val full = expandText(cands[0], table) ?: return cands
+            if (full in cands) return cands
+            return (listOf(cands[0], full) + cands.drop(1).filter { it != full }).take(maxOf(cands.size, 2))
+        }
 
         /** No space between Khmer pieces; one space next to a Latin word (training target rule). */
         fun join(left: String, right: String): String = when {

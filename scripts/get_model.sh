@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p models/akkhara-mini/onnx
 base="https://huggingface.co/INGMUYLEANG/akkhara-mini/resolve/main/onnx"
-for f in encoder.int8.onnx decoder.int8.onnx tokenizer.json; do
+for f in encoder.int8.onnx decoder.int8.onnx tokenizer.json abbreviations.tsv; do
   curl -fL --progress-bar -o "models/akkhara-mini/onnx/$f" "$base/$f"
 done
 ls -la models/akkhara-mini/onnx

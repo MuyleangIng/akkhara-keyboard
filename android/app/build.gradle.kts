@@ -26,8 +26,8 @@ android {
         applicationId = "com.akkhara.keyboard"
         minSdk = 26          // Android 8.0+
         targetSdk = 35       // Android 15 (Galaxy S25 runs Android 15/16)
-        versionCode = 15
-        versionName = "0.10.1"
+        versionCode = 16
+        versionName = "0.11.0"
         // phone CPUs only: arm64 (all new phones, e.g. Galaxy S25) + 32-bit arm (older phones)
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
@@ -65,7 +65,7 @@ dependencies {
 // Copy the int8 model + tokenizer into assets/akkhara-mini/ before building.
 val copyModel by tasks.registering(Copy::class) {
     from(rootProject.file("../models/akkhara-mini/onnx")) {
-        include("encoder.int8.onnx", "decoder.int8.onnx", "tokenizer.json")
+        include("encoder.int8.onnx", "decoder.int8.onnx", "tokenizer.json", "abbreviations.tsv")
     }
     into(file("src/main/assets/akkhara-mini"))
 }
