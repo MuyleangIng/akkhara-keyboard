@@ -1,4 +1,4 @@
-# model files (downloaded with scripts/get_model.sh; gated on Hugging Face)
+# model files (downloaded with scripts/get_model.sh, open on Hugging Face)
 models/
 # local caches
 .DS_Store

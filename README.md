@@ -114,19 +114,22 @@ All Akkhara models on the same tests (green = the phone model, blue = the big mo
 
 `scripts/get_model.sh` downloads the same model, so a build from source uses it too.
 
+**On a computer?** [Akkhara Desktop](https://github.com/MuyleangIng/akkhara-desktop) (test app) uses the same
+model on Mac and Windows: press a hotkey in any app, type Sing Khmer, get Khmer.
+
 The [web demo](https://huggingface.co/spaces/INGMUYLEANG/akkhara-demo) uses the same model by default; a larger
 model ([akkhara-byt5-small](https://huggingface.co/INGMUYLEANG/akkhara-byt5-small), 300M, real chat top-1 87%, best on formal text) is in its menu. Model weights are
 open to download on Hugging Face.
 
 ## Build from source
 
-Requirements: Java 17, Android SDK 35 (command-line tools are enough), and access to the
-[akkhara-mini](https://huggingface.co/INGMUYLEANG/akkhara-mini) model on Hugging Face.
+Requirements: Java 17 and Android SDK 35 (command-line tools are enough). The
+[akkhara-mini](https://huggingface.co/INGMUYLEANG/akkhara-mini) model is open: no Hugging Face account needed.
 
 ```bash
 git clone https://github.com/MuyleangIng/akkhara-keyboard.git && cd akkhara-keyboard
-hf auth login                       # after your access request was approved
-bash scripts/get_model.sh           # → models/akkhara-mini/onnx (int8 model + tokenizer)
+bash scripts/get_model.sh           # → models/akkhara-mini/onnx (int8 model + tokenizer, ~18.5 MB)
+export ANDROID_HOME=~/Library/Android/sdk   # where your Android SDK is (Linux: ~/Android/Sdk)
 cd android && ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
