@@ -26,8 +26,8 @@ android {
         applicationId = "com.akkhara.keyboard"
         minSdk = 26          // Android 8.0+
         targetSdk = 35       // Android 15 (Galaxy S25 runs Android 15/16)
-        versionCode = 16
-        versionName = "0.11.0"
+        versionCode = 17
+        versionName = "0.11.1"
         // phone CPUs only: arm64 (all new phones, e.g. Galaxy S25) + 32-bit arm (older phones)
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
@@ -57,6 +57,7 @@ android {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")  // JVM unit tests (app/src/test)
     // ONNX Runtime for Android: runs encoder.onnx / decoder.onnx on the phone CPU
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

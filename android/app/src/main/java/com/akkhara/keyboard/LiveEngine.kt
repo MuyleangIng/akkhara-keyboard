@@ -27,6 +27,11 @@ class LiveEngine(private val model: MiniModel, private val chunkWords: Int = 6) 
 
     /** #1 only, greedy for the last chunk (uses the cached top-5 if it is already known). */
     fun quick(text: String, cancelled: () -> Boolean = { false }): String {
+        withAbbreviations(text, model.abbreviations, 1) { listOf(quickPlain(it, cancelled)) }?.let { return it.firstOrNull() ?: "" }
+        return quickPlain(text, cancelled)
+    }
+
+    private fun quickPlain(text: String, cancelled: () -> Boolean): String {
         val cs = chunks(text)
         if (cs.isEmpty()) return ""
         val last = cs.last()
@@ -37,35 +42,72 @@ class LiveEngine(private val model: MiniModel, private val chunkWords: Int = 6) 
 
     /** Top-5 whole-text candidates: best finished chunks + each candidate of the last chunk. */
     fun candidates(text: String, cancelled: () -> Boolean = { false }): List<String> {
+        // known abbreviations (mptc, rupp …) never reach the model: as typed #1, full Khmer name #2
+        withAbbreviations(text, model.abbreviations, 5) { candidatesPlain(it, cancelled) }?.let { return it }
+        return candidatesPlain(text, cancelled)
+    }
+
+    private fun candidatesPlain(text: String, cancelled: () -> Boolean): List<String> {
         val cs = chunks(text)
         if (cs.isEmpty()) return emptyList()
         val prefix = prefixOf(cs)
-        return expand(top(cs.last(), cancelled).map { join(prefix, it.first) }, model.abbreviations)
+        return top(cs.last(), cancelled).map { join(prefix, it.first) }
     }
 
     companion object {
         private fun isLatin(c: Char) = c.code < 128 && c.isLetter()
         private const val TRAIL = ".,!?។៕"
 
-        /** The sentence with each known abbreviation replaced by its full Khmer name, or null. */
-        fun expandText(text: String, table: Map<String, String>): String? {
-            var out = ""
-            var hit = false
-            for (tok in text.split(' ')) {
-                val core = tok.trimEnd { it in TRAIL }
-                val full = if (core.isNotEmpty()) table[core.lowercase()] else null
-                if (full != null) { hit = true; out = join(out, full) + tok.substring(core.length) }
-                else if (tok.isNotEmpty()) out = join(out, tok)
+        /**
+         * Top-k for text with known abbreviations, which are NOT sent to the model (alone, the model
+         * turned "mptc" into a wrong ministry): #1 = other words from the model + abbreviation as typed,
+         * #2 = the same with the full Khmer name, then other candidates of the last plain piece.
+         * Null when the text has no known abbreviation. Same logic as akkhara/abbrev.py.
+         */
+        fun withAbbreviations(text: String, table: Map<String, String>, k: Int,
+                              topFn: (String) -> List<String>): List<String>? {
+            if (table.isEmpty()) return null
+            val segs = ArrayList<Pair<Boolean, String>>()  // (isAbbreviation, text)
+            val cur = ArrayList<String>()
+            for (w in text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }) {
+                val core = w.trimEnd { it in TRAIL }
+                if (core.isNotEmpty() && table.containsKey(core.lowercase())) {
+                    if (cur.isNotEmpty()) { segs.add(false to cur.joinToString(" ")); cur.clear() }
+                    segs.add(true to w)
+                } else cur.add(w)
             }
-            return if (hit) out else null
+            if (cur.isNotEmpty()) segs.add(false to cur.joinToString(" "))
+            if (segs.none { it.first }) return null
+            val results = segs.map { (abbr, v) -> if (abbr) emptyList() else topFn(v) }
+            val last = segs.indices.lastOrNull { !segs[it].first }
+            fun build(alt: Int, full: Boolean): String {
+                var out = ""
+                segs.forEachIndexed { i, (abbr, v) ->
+                    val piece = if (abbr) {
+                        val core = v.trimEnd { it in TRAIL }
+                        if (full) dropOverlap(out, table.getValue(core.lowercase()) + v.substring(core.length)) else v
+                    } else {
+                        val r = results[i]
+                        val j = if (i == last) alt else 0
+                        r.getOrNull(j) ?: r.firstOrNull() ?: v
+                    }
+                    out = join(out, piece)
+                }
+                return out
+            }
+            val cands = arrayListOf(build(0, false), build(0, true))
+            if (last != null) for (j in 1 until results[last].size) {
+                val c = build(j, false)
+                if (c !in cands) cands.add(c)
+                if (cands.size >= k) break
+            }
+            return cands.take(k)
         }
 
-        /** Abbreviation kept as typed at #1 (mptc) → the same sentence with the full Khmer name at #2. */
-        fun expand(cands: List<String>, table: Map<String, String>): List<String> {
-            if (cands.isEmpty() || table.isEmpty()) return cands
-            val full = expandText(cands[0], table) ?: return cands
-            if (full in cands) return cands
-            return (listOf(cands[0], full) + cands.drop(1).filter { it != full }).take(maxOf(cands.size, 2))
+        /** 'theanakear aba': do not repeat ធនាគារ already written (≥ 3 letters). */
+        private fun dropOverlap(out: String, full: String): String {
+            for (n in full.length - 1 downTo 3) if (out.endsWith(full.substring(0, n))) return full.substring(n)
+            return full
         }
 
         /** No space between Khmer pieces; one space next to a Latin word (training target rule). */
