@@ -110,13 +110,13 @@ All Akkhara models on the same tests (green = the phone model, blue = the big mo
 
 | | Real chat (39 sentences): top-1 / top-5 | Speed on phone |
 |---|---|---|
-| **akkhara-mini** (latest, in the app since 0.10.0) | **85% / 92%** | ~10 ms (#1) · ~20 ms (top-5) |
+| **akkhara-mini** (latest, in the app since 0.10.1) | **87% / 95%** | ~10 ms (#1) · ~20 ms (top-5) |
 
 `scripts/get_model.sh` downloads the same model, so a build from source uses it too.
 
 The [web demo](https://huggingface.co/spaces/INGMUYLEANG/akkhara-demo) uses the same model by default; a larger
 model ([akkhara-byt5-small](https://huggingface.co/INGMUYLEANG/akkhara-byt5-small), 300M, real chat top-1 87%, best on formal text) is in its menu. Model weights are
-gated on Hugging Face: request access on the model page.
+open to download on Hugging Face.
 
 ## Build from source
 
@@ -154,7 +154,7 @@ Bug reports, layout ideas and real Sing Khmer spellings are very welcome — see
 Code: [Apache License 2.0](LICENSE) © 2026 Ing Muyleang. The built-in dictionary
 (`android/app/src/main/assets/dict/`) comes from [Wiktionary](https://en.wiktionary.org) and is
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) (see its NOTICE.txt). The model is licensed separately
-(Apache-2.0, gated access) on [Hugging Face](https://huggingface.co/INGMUYLEANG/akkhara-mini).
+(Apache-2.0, open download) on [Hugging Face](https://huggingface.co/INGMUYLEANG/akkhara-mini).
 
 ## Contact
 
