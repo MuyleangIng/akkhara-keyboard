@@ -1,0 +1,7 @@
+Khmer → English dictionary used by Akkhara (khmer_en.tsv)
+
+Source: Wiktionary (https://en.wiktionary.org), Khmer entries, extracted with wiktextract
+(https://kaikki.org/dictionary/Khmer/). Shortened by Akkhara (first meanings only).
+License: Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0),
+https://creativecommons.org/licenses/by-sa/4.0/ — © Wiktionary contributors.
+This file may be shared and changed under the same license; the rest of the app is Apache-2.0.

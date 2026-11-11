@@ -1,0 +1,12 @@
+.gradle/
+build/
+app/build/
+local.properties
+# model files are copied in at build time from ../models/akkhara-mini/onnx (gated, large)
+app/src/main/assets/akkhara-mini/
+*.apk
+
+# release signing key + its passwords: NEVER commit (back them up somewhere safe)
+keystore/
+keystore.properties
+/dist/

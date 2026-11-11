@@ -1,0 +1,6 @@
+# model files (downloaded with scripts/get_model.sh, open on Hugging Face)
+models/
+# local caches
+.DS_Store
+.idea/
+*.iml
